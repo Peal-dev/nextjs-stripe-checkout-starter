@@ -52,7 +52,7 @@ export function PricingCard({ plan, interval, className }: PricingCardProps) {
   return (
     <Card
       className={cn(
-        "relative flex flex-col",
+        "relative flex flex-col overflow-visible",
         isHighlighted && "ring-2 ring-primary",
         className
       )}
