@@ -13,7 +13,8 @@ export const env = createEnv({
     STRIPE_WEBHOOK_SECRET: z
       .string()
       .startsWith("whsec_", "Must be a valid Stripe webhook signing secret"),
-    STRIPE_CUSTOMER_PORTAL_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_URL: z.string().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   },
 
@@ -25,7 +26,7 @@ export const env = createEnv({
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z
       .string()
       .startsWith("pk_", "Must be a valid Stripe publishable key (pk_test_ or pk_live_)"),
-    NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+    NEXT_PUBLIC_APP_URL: z.string().optional(),
   },
 
   /**
@@ -36,7 +37,8 @@ export const env = createEnv({
   runtimeEnv: {
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-    STRIPE_CUSTOMER_PORTAL_URL: process.env.STRIPE_CUSTOMER_PORTAL_URL,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
       process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,

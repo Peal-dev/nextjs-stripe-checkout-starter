@@ -42,3 +42,32 @@ export function getStripeRedirectUrl(path: string): string {
     env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   return `${baseUrl}${path}`;
 }
+
+/**
+ * Extracts a Stripe Customer ID from a customer field.
+ *
+ * Stripe object fields like `session.customer` or `subscription.customer`
+ * can be a string ID, an expanded Customer/DeletedCustomer object, or null.
+ * This helper safely extracts the ID without using `as` type assertions.
+ */
+export function getCustomerId(
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined
+): string | null {
+  if (!customer) return null
+  if (typeof customer === "string") return customer
+  return customer.id
+}
+
+/**
+ * Extracts a Stripe resource ID from a field that may be a string or an expanded object.
+ *
+ * Useful for fields like `session.subscription`, `session.payment_intent`, etc.
+ * that can be either a string ID or an expanded object with an `id` property.
+ */
+export function getResourceId(
+  resource: string | { id: string } | null | undefined
+): string | null {
+  if (!resource) return null
+  if (typeof resource === "string") return resource
+  return resource.id
+}

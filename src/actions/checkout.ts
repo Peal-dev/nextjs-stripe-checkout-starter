@@ -1,20 +1,37 @@
-"use server";
+"use server"
 
-import { z } from "zod";
+import { headers } from "next/headers"
 
-import { stripe, getStripeRedirectUrl } from "@/lib/stripe";
-import { getPaymentsConfig } from "@/lib/payments";
-import { plans } from "@/config/pricing";
-import type { CheckoutResult, PortalResult } from "@/types/stripe";
-import { env } from "@/lib/env";
+import { stripe, getStripeRedirectUrl } from "@/lib/stripe"
+import { getPaymentsConfig } from "@/lib/payments"
+import {
+  checkoutRateLimiter,
+  portalRateLimiter,
+  checkRateLimit,
+} from "@/lib/rate-limit"
+import { checkoutInputSchema, portalInputSchema } from "@/lib/validation"
+import { plans } from "@/config/pricing"
+import type { CheckoutResult, PortalResult } from "@/types/stripe"
 
 /**
- * Zod schema for checkout session input.
- * Validates and sanitizes user input before hitting the Stripe API.
+ * Extracts the client IP address from request headers.
+ *
+ * Checks common proxy headers in order of specificity:
+ * 1. x-forwarded-for (standard proxy header, first IP is the client)
+ * 2. x-real-ip (Nginx, some CDNs)
+ * 3. Falls back to "unknown" (rate limiting will still work but
+ *    all unknown clients share a single bucket)
  */
-const checkoutSchema = z.object({
-  priceId: z.string().min(1, "Price ID is required"),
-});
+async function getClientIp(): Promise<string> {
+  const headersList = await headers()
+  const forwarded = headersList.get("x-forwarded-for")
+
+  if (forwarded) {
+    return forwarded.split(",")[0]?.trim() ?? "unknown"
+  }
+
+  return headersList.get("x-real-ip") ?? "unknown"
+}
 
 /**
  * Creates a Stripe Checkout Session and returns the hosted checkout URL.
@@ -29,31 +46,41 @@ const checkoutSchema = z.object({
 export async function createCheckoutSession(
   priceId: string
 ): Promise<CheckoutResult> {
-  const parsed = checkoutSchema.safeParse({ priceId });
+  const ip = await getClientIp()
+  const rateLimitResult = await checkRateLimit(checkoutRateLimiter, ip)
+
+  if (!rateLimitResult.allowed) {
+    return {
+      success: false,
+      error: `Too many requests. Please try again in ${rateLimitResult.retryAfter} seconds.`,
+    }
+  }
+
+  const parsed = checkoutInputSchema.safeParse({ priceId })
 
   if (!parsed.success) {
-    return { success: false, error: "Invalid price ID" };
+    return { success: false, error: "Invalid price ID format" }
   }
 
-  const validPriceId = parsed.data.priceId;
+  const validPriceId = parsed.data.priceId
 
   const plan = plans.find((p) => {
-    if (p.type === "one-time") return p.priceId === validPriceId;
+    if (p.type === "one-time") return p.priceId === validPriceId
     return (
       p.monthlyPriceId === validPriceId || p.yearlyPriceId === validPriceId
-    );
-  });
+    )
+  })
 
   if (!plan) {
-    return { success: false, error: "Unknown price ID" };
+    return { success: false, error: "Unknown price ID" }
   }
 
-  const config = getPaymentsConfig();
+  const config = getPaymentsConfig()
 
   const isRecurring =
     plan.type === "recurring" &&
     (validPriceId === plan.monthlyPriceId ||
-      validPriceId === plan.yearlyPriceId);
+      validPriceId === plan.yearlyPriceId)
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -82,43 +109,71 @@ export async function createCheckoutSession(
           },
         },
       }),
-    });
+    })
 
     if (!session.url) {
-      return { success: false, error: "Failed to create checkout session" };
+      return { success: false, error: "Failed to create checkout session" }
     }
 
-    return { success: true, url: session.url };
+    return { success: true, url: session.url }
   } catch {
-    return { success: false, error: "Something went wrong. Please try again." };
+    return { success: false, error: "Something went wrong. Please try again." }
   }
 }
 
 /**
- * Creates a Stripe Customer Portal session.
+ * Creates a Stripe Billing Portal session.
  *
- * Allows existing customers to manage billing, update payment methods,
- * and cancel subscriptions. Requires a Stripe Customer ID.
+ * Allows existing customers to:
+ * - View and download invoices
+ * - Update payment methods
+ * - Change or cancel subscriptions
+ * - Update billing information
+ *
+ * Prerequisites:
+ * - Configure your portal at https://dashboard.stripe.com/settings/billing/portal
+ * - The customer must have an existing Stripe Customer ID (cus_xxx)
  *
  * @param customerId - The Stripe Customer ID (cus_xxx)
+ * @param returnPath - Optional relative path to redirect to after the portal session (defaults to "/")
  */
 export async function createPortalSession(
-  customerId: string
+  customerId: string,
+  returnPath?: string
 ): Promise<PortalResult> {
-  const portalUrl = env.STRIPE_CUSTOMER_PORTAL_URL;
+  const ip = await getClientIp()
+  const rateLimitResult = await checkRateLimit(portalRateLimiter, ip)
 
-  if (!portalUrl) {
-    return { success: false, error: "Customer portal is not configured" };
+  if (!rateLimitResult.allowed) {
+    return {
+      success: false,
+      error: `Too many requests. Please try again in ${rateLimitResult.retryAfter} seconds.`,
+    }
+  }
+
+  const parsed = portalInputSchema.safeParse({ customerId, returnPath })
+
+  if (!parsed.success) {
+    return { success: false, error: "Invalid input" }
+  }
+
+  const config = getPaymentsConfig()
+
+  if (!config.customerPortal.enabled) {
+    return { success: false, error: "Customer portal is not enabled" }
   }
 
   try {
     const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: getStripeRedirectUrl("/"),
-    });
+      customer: parsed.data.customerId,
+      return_url: getStripeRedirectUrl(parsed.data.returnPath ?? "/"),
+    })
 
-    return { success: true, url: session.url };
+    return { success: true, url: session.url }
   } catch {
-    return { success: false, error: "Failed to create portal session" };
+    return {
+      success: false,
+      error: "Failed to create portal session. Please try again.",
+    }
   }
 }

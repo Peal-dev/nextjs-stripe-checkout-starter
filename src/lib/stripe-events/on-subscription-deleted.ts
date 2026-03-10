@@ -1,4 +1,6 @@
-import type Stripe from "stripe";
+import type Stripe from "stripe"
+
+import { getCustomerId } from "@/lib/stripe"
 
 /**
  * Handles `customer.subscription.deleted` events.
@@ -20,12 +22,12 @@ import type Stripe from "stripe";
 export async function onSubscriptionDeleted(
   subscription: Stripe.Subscription
 ): Promise<void> {
-  const customerId = subscription.customer as string;
-  const subscriptionId = subscription.id;
+  const customerId = getCustomerId(subscription.customer)
+  const subscriptionId = subscription.id
 
   // TODO: Implement your access revocation logic here.
   // This is where you downgrade the user, remove access, send churn emails, etc.
 
-  void customerId;
-  void subscriptionId;
+  void customerId
+  void subscriptionId
 }

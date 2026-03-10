@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import type { PaymentsConfigFlags } from "@/types/payments";
+
 import paymentsConfig from "../../payments.config";
 
 /**

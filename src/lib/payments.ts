@@ -1,4 +1,5 @@
 import type { PaymentMode } from "@/types/payments";
+
 import paymentsConfig from "../../payments.config";
 
 /**

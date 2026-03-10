@@ -1,4 +1,6 @@
-import type Stripe from "stripe";
+import type Stripe from "stripe"
+
+import { getCustomerId } from "@/lib/stripe"
 
 /**
  * Handles `customer.subscription.updated` events.
@@ -16,16 +18,16 @@ import type Stripe from "stripe";
 export async function onSubscriptionUpdated(
   subscription: Stripe.Subscription
 ): Promise<void> {
-  const customerId = subscription.customer as string;
-  const status = subscription.status;
-  const cancelAtPeriodEnd = subscription.cancel_at_period_end;
-  const priceId = subscription.items.data[0]?.price.id;
+  const customerId = getCustomerId(subscription.customer)
+  const status = subscription.status
+  const cancelAtPeriodEnd = subscription.cancel_at_period_end
+  const priceId = subscription.items.data[0]?.price.id
 
   // TODO: Implement your subscription sync logic here.
   // This is where you update plan tiers, handle downgrades, detect cancellations, etc.
 
-  void customerId;
-  void status;
-  void cancelAtPeriodEnd;
-  void priceId;
+  void customerId
+  void status
+  void cancelAtPeriodEnd
+  void priceId
 }

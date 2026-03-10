@@ -1,4 +1,6 @@
-import type Stripe from "stripe";
+import type Stripe from "stripe"
+
+import { getCustomerId } from "@/lib/stripe"
 
 /**
  * Handles `invoice.paid` events.
@@ -16,15 +18,15 @@ import type Stripe from "stripe";
 export async function onInvoicePaid(
   invoice: Stripe.Invoice
 ): Promise<void> {
-  const customerId = invoice.customer as string | null;
+  const customerId = getCustomerId(invoice.customer)
   const subscriptionId =
-    invoice.parent?.subscription_details?.subscription as string | null;
-  const amountPaid = invoice.amount_paid;
+    invoice.parent?.subscription_details?.subscription ?? null
+  const amountPaid = invoice.amount_paid
 
   // TODO: Implement your renewal/payment logic here.
   // This is where you extend access, log payments, send receipts, etc.
 
-  void customerId;
-  void subscriptionId;
-  void amountPaid;
+  void customerId
+  void subscriptionId
+  void amountPaid
 }
