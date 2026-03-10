@@ -1,4 +1,4 @@
-# TEST.md — Working with this Template (Claude Code Guide)
+# CLAUDE.md — Working with this Template (Claude Code Guide)
 
 This file teaches you how to use, extend, and test this codebase. Read this before writing any code.
 

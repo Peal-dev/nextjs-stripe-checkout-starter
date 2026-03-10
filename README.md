@@ -22,7 +22,7 @@
 
 <p align="center">
   <a href="https://github.com/Peal-dev/nextjs-stripe-checkout-starter">
-    <img src="public/peal-star-us.png" alt="Star us on GitHub" width="250" />
+    <img src="public/peal-star-us.png" alt="Star us on GitHub" width="100%" />
   </a>
 </p>
 
