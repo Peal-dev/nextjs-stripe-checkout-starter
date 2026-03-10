@@ -16,6 +16,14 @@
   <img src="https://img.shields.io/badge/Tailwind%20CSS-4-06b6d4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
   <img src="https://img.shields.io/badge/shadcn%2Fui-Components-000?logo=shadcnui&logoColor=white" alt="shadcn/ui" />
   <img src="https://img.shields.io/badge/ESLint-Zero%20warnings-4b32c3?logo=eslint&logoColor=white" alt="ESLint" />
+  <img src="https://img.shields.io/badge/Vitest-70%20tests-6e9f18?logo=vitest&logoColor=white" alt="Vitest" />
+  <img src="https://img.shields.io/badge/Playwright-E2E-2ead33?logo=playwright&logoColor=white" alt="Playwright" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/Peal-dev/nextjs-stripe-checkout-starter">
+    <img src="public/peal-star-us.png" alt="Star us on GitHub" width="250" />
+  </a>
 </p>
 
 ---
@@ -46,6 +54,8 @@
 | :jigsaw: | shadcn/ui components | Beautiful, accessible UI primitives |
 | :bone: | Skeleton loading states | Instant perceived performance on every page |
 | :rotating_light: | Error boundaries | Graceful error handling per route segment |
+| :test_tube: | 70 unit tests | Vitest suites for validation, pricing, Stripe helpers |
+| :performing_arts: | E2E test suite | Playwright tests for full checkout flow |
 
 ## Tech Stack
 
@@ -61,6 +71,8 @@
 | Rate Limiting | [Upstash Redis](https://upstash.com) (optional) |
 | Animations | [@number-flow/react](https://number-flow.barvian.me) |
 | Linting | [ESLint 9](https://eslint.org) + [typescript-eslint](https://typescript-eslint.io) |
+| Unit Testing | [Vitest](https://vitest.dev) + [Testing Library](https://testing-library.com) |
+| E2E Testing | [Playwright](https://playwright.dev) |
 
 ## Quick Start
 
@@ -73,7 +85,7 @@
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-username/nextjs-stripe-checkout-starter.git
+git clone https://github.com/Peal-dev/nextjs-stripe-checkout-starter.git
 cd nextjs-stripe-checkout-starter
 bun install
 ```
@@ -223,31 +235,79 @@ Customer Portal (optional)
 
 ### Payment Modes
 
-The `payments.config.ts` file in the project root controls everything:
+The entire payment behavior is controlled by a **single file** in the project root: `payments.config.ts`.
 
 ```ts
+// payments.config.ts
+import type { PaymentsConfig } from "@/types/payments";
+
 const config: PaymentsConfig = {
-  mode: "subscription",     // "one-time" | "subscription" | "hybrid"
+  mode: "subscription",
   customerPortal: {
-    enabled: true,           // Show "Manage Billing" button
+    enabled: true,
   },
   redirects: {
     success: "/checkout/success",
     cancel: "/checkout/cancel",
   },
-}
+};
+
+export default config;
 ```
 
+#### `mode`
+
+Determines which Stripe flows are active across the entire app:
+
+| Mode | Description | Webhook events processed | UI |
+|---|---|---|---|
+| `"one-time"` | Single-charge checkout only | `checkout.session.completed` | Pricing cards without billing toggle |
+| `"subscription"` | Recurring billing only | `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted` | Pricing cards with monthly/yearly toggle |
+| `"hybrid"` | Both flows simultaneously | All of the above | Mixed pricing cards with toggle |
+
 Changing `mode` automatically adjusts:
-- Which webhook events are processed
-- Which UI components are rendered (toggle, pricing cards)
-- Which checkout session parameters are used
+- **Webhook processing** — irrelevant events are ignored (e.g., `invoice.paid` is skipped in `"one-time"` mode)
+- **UI components** — the billing toggle only renders when subscriptions are supported
+- **Checkout session params** — `mode: "payment"` vs `mode: "subscription"` is set automatically
+- **Pricing cards** — plans with `type: "one-time"` or `type: "recurring"` are filtered based on the active mode
+
+#### `customerPortal`
+
+Controls whether the "Manage Billing" button is shown in the UI. When enabled, customers can access the [Stripe Customer Portal](https://dashboard.stripe.com/settings/billing/portal) to update payment methods, view invoices, and cancel subscriptions. Only relevant for `"subscription"` and `"hybrid"` modes.
+
+#### `redirects`
+
+Relative paths appended to `NEXT_PUBLIC_APP_URL` (falls back to `http://localhost:3000` in dev). These are passed to Stripe when creating checkout sessions:
+
+- `success` — where the customer lands after a successful payment
+- `cancel` — where the customer lands if they close the Stripe checkout page
+
+#### How the config flows through the app
+
+```
+payments.config.ts (single source of truth)
+        │
+        ├── usePaymentsConfig() hook
+        │     Returns config + derived flags:
+        │     • supportsOneTime    (true for "one-time" | "hybrid")
+        │     • supportsSubscriptions (true for "subscription" | "hybrid")
+        │     Used by PricingTable, CustomerPortalButton, etc.
+        │
+        ├── createCheckoutSession() server action
+        │     Reads mode to set Stripe checkout session type
+        │
+        ├── isEventRelevant() in lib/payments.ts
+        │     Filters webhook events based on mode
+        │
+        └── routeEvent() in webhook handler
+              Only processes events that pass isEventRelevant()
+```
 
 ## Deployment
 
 ### Vercel (Recommended)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/nextjs-stripe-checkout-starter&env=STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY&envDescription=Stripe%20API%20keys%20required%20for%20the%20checkout%20flow&envLink=https://dashboard.stripe.com/apikeys)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Peal-dev/nextjs-stripe-checkout-starter&env=STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY&envDescription=Stripe%20API%20keys%20required%20for%20the%20checkout%20flow&envLink=https://dashboard.stripe.com/apikeys)
 
 1. Click the button above
 2. Add your environment variables when prompted
@@ -314,6 +374,58 @@ bun run start
 | `bun run lint` | Run ESLint |
 | `bun run lint:fix` | Run ESLint with auto-fix |
 | `bun run typecheck` | TypeScript type checking |
+| `bun run test` | Run unit tests (Vitest) |
+| `bun run test:watch` | Run unit tests in watch mode |
+| `bun run test:coverage` | Run unit tests with coverage report |
+| `bun run test:e2e` | Run E2E tests (Playwright) |
+| `bun run test:e2e:ui` | Run E2E tests with Playwright UI |
+
+## Testing
+
+### Unit Tests (Vitest)
+
+70 tests across 5 suites covering all utility functions, validation schemas, and business logic:
+
+| Suite | Tests | What it covers |
+|---|---|---|
+| `src/lib/validation.test.ts` | 27 | All Zod schemas — checkout input, portal input, webhook payload, open redirect prevention |
+| `src/config/pricing.test.ts` | 16 | `formatPrice`, `getPriceId`, `getDisplayPrice`, `getYearlySavings` |
+| `src/lib/stripe.test.ts` | 13 | `getCustomerId`, `getResourceId`, `getStripeRedirectUrl` (with env mocking) |
+| `src/lib/payments.test.ts` | 7 | `isEventRelevant` event filtering across all payment modes |
+| `src/lib/utils.test.ts` | 7 | `cn()` class merging and Tailwind conflict resolution |
+
+```bash
+# Run all unit tests
+bun run test
+
+# Watch mode (re-runs on file changes)
+bun run test:watch
+
+# With coverage report
+bun run test:coverage
+```
+
+### E2E Tests (Playwright)
+
+5 spec files covering the full checkout flow:
+
+| Spec | What it covers |
+|---|---|
+| `e2e/pricing.spec.ts` | Pricing page render, plan cards, features, CTA buttons, heading hierarchy |
+| `e2e/checkout-flow.spec.ts` | Checkout button loading state, error handling |
+| `e2e/success-page.spec.ts` | Invalid/missing session fallback, navigation links |
+| `e2e/cancel-page.spec.ts` | Cancel page render, reassurance messaging, navigation |
+| `e2e/not-found.spec.ts` | Custom 404 page, status code, navigation links |
+
+```bash
+# Run E2E tests (headless)
+bun run test:e2e
+
+# Run with Playwright UI (interactive)
+bun run test:e2e:ui
+```
+
+> **Note:** E2E tests require the dev server to be running. Playwright is configured to start it automatically via `webServer` in `playwright.config.ts`.
 
 ## FAQ
 

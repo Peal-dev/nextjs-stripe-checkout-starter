@@ -211,4 +211,20 @@ export default [
       "@typescript-eslint/no-unsafe-return": "off",
     },
   },
+
+  // -----------------------------------------------------------------------
+  // Test files: relax assertion rules for test mocks and fixtures
+  // -----------------------------------------------------------------------
+  {
+    files: ["src/**/*.test.ts", "src/**/*.test.tsx", "e2e/**/*.spec.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "no-console": "off",
+    },
+  },
 ]
