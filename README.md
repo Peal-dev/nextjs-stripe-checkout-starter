@@ -68,12 +68,6 @@
 | Unit Testing | [Vitest](https://vitest.dev) + [Testing Library](https://testing-library.com) |
 | E2E Testing | [Playwright](https://playwright.dev) |
 
-<p align="center">
-  <a href="https://github.com/Peal-dev/nextjs-stripe-checkout-starter">
-    <img src="public/peal-star-us.png" alt="Star us on GitHub" width="100%" />
-  </a>
-</p>
-
 ## Quick Start
 
 ### Prerequisites
@@ -141,6 +135,12 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) — you're ready to accept payments.
+
+<p align="center">
+  <a href="https://github.com/Peal-dev/nextjs-stripe-checkout-starter">
+    <img src="public/peal-star-us.png" alt="Star us on GitHub" width="100%" />
+  </a>
+</p>
 
 ## Architecture
 
